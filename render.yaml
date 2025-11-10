@@ -1,35 +1,21 @@
-# render.yaml  (front door + private app)
-
 services:
-  # ---- FRONT DOOR (public) ----
   - type: web
-    # IMPORTANT: name must match your current public service's name EXACTLY
     name: combined-progress-note
-    runtime: image                  # we will run a prebuilt NGINX image
+    runtime: image
     image:
       url: docker.io/library/nginx:1.27-alpine
-    region: Virginia
-    # Render expects your web service to bind to the PORT (default 10000)
-    # We'll direct nginx to listen on 10000 in the nginx.conf file.
-    healthCheckPath: /healthz       # nginx will return 200 here (no auth)
-    envVars:
-      # We'll paste NGINX config & htpasswd as "Secret Files" in the dashboard,
-      # not in this file. (Blueprints don't embed secret files.)
-      # So nothing needed here right now.
+    region: Virgina
+    healthCheckPath: /healthz
+    dockerCommand: nginx -g 'daemon off;' -c /etc/secrets/nginx.conf
 
-  # ---- YOUR APP (private) ----
-  - type: pserv                      # "private service" - no public URL
+  - type: pserv
     name: cmr-app
     runtime: python
     repo: https://github.com/CioneMcQueenResidences/Cione-McQueen-Residences
     region: Virginia
+    plan: starter
     buildCommand: pip install -r requirements.txt
-    # If your app is Streamlit, this start command is correct.
-    # If it's something else (Flask, FastAPI, Django), see the notes below.
-    startCommand: >
-      streamlit run app.py --server.address 0.0.0.0 --server.port 10001
+    startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port 10001
     envVars:
       - key: PORT
         value: "10001"
-    # Note: Private services can't use the free plan (Render requirement).
-    # We'll leave "plan" blank so Render defaults or preserves your choice.
