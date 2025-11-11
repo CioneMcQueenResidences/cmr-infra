@@ -1,7 +1,7 @@
 services:
-  # === PUBLIC PROXY (keeps your current onrender.com URL) ===
+  # === PUBLIC PROXY (keeps your public onrender.com URL) ===
   - type: web
-    name: combined-progress-note            # must match your existing public service name
+    name: combined-progress-note
     runtime: image
     image:
       url: quay.io/oauth2-proxy/oauth2-proxy:v7.12.0
@@ -30,6 +30,8 @@ services:
         value: "*"
       - key: OAUTH2_PROXY_SKIP_AUTH_ROUTES
         value: "^/ping$"
+      - key: OAUTH2_PROXY_REVERSE_PROXY
+        value: "true"
       - key: OAUTH2_PROXY_CLIENT_ID
         sync: false
       - key: OAUTH2_PROXY_CLIENT_SECRET
@@ -38,7 +40,8 @@ services:
         sync: false
       - key: OAUTH2_PROXY_HTPASSWD_FILE
         value: /etc/secrets/htpasswd
-      # Wire proxy to the private app via internal host:port
+
+      # Wire proxy to the private app via internal host:port (from this blueprint)
       - key: UPSTREAM_HOSTPORT
         fromService:
           name: cmr-app
@@ -55,20 +58,31 @@ services:
       --pass-authorization-header=$OAUTH2_PROXY_PASS_USER_HEADERS
       --silence-ping-logging=$OAUTH2_PROXY_SILENCE_PING_LOGGING
 
-  # === PRIVATE STREAMLIT APP ===
+  # === PRIVATE STREAMLIT APP (builds from the app repo) ===
   - type: pserv
     name: cmr-app
     env: python
     plan: starter
+
+    # Build the app from the *separate* repo
+    repo: https://github.com/CioneMcQueenResidences/Cione-McQueen-Residences
+    branch: main
+    # rootDir: /            # (uncomment if app is not at repo root)
+
     buildCommand: pip install -r requirements.txt
     startCommand: streamlit run app.py --server.port 10001 --server.address 0.0.0.0
+
     envVars:
       - key: PORT
         value: "10001"
       - key: PYTHON_VERSION
         value: "3.11.9"
+
+      # Auth config passed via env (raw YAML or base64 via AUTH_CONFIG_YAML_B64)
       - key: AUTH_CONFIG_YAML
         sync: false
+
+      # Dropbox (optional but supported in app.py)
       - key: DROPBOX_APP_KEY
         sync: false
       - key: DROPBOX_APP_SECRET
